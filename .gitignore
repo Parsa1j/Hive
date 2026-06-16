@@ -1,0 +1,27 @@
+# Secrets — never commit real keys
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# OS / editor / tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+
+# Build artifacts
+dist/
+build/
+
+# Generated docs / local tooling (not part of the app)
+AgentForge_Docs.pdf
+generate_docs.py

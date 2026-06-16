@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentForge</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+      --purple: #bc8cff;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    header span {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 2rem;
+      padding: 0.2rem 0.6rem;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+
+    .input-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .input-section label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      padding: 0.75rem 1rem;
+      resize: vertical;
+      min-height: 90px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+
+    .input-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+
+    button#runBtn {
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.4rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    button#runBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    button#runBtn:not(:disabled):hover { opacity: 0.85; }
+
+    /* Pipeline status strip */
+    .pipeline {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .pipeline-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2rem;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+
+    .pipeline-badge.running {
+      border-color: var(--yellow);
+      color: var(--yellow);
+    }
+
+    .pipeline-badge.done {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .pipeline-badge.error {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .dot.pulse {
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Agent cards */
+    .cards { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .agent-card.running { border-color: var(--yellow); }
+    .agent-card.done    { border-color: var(--border); }
+    .agent-card.error   { border-color: var(--red); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1.25rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .card-icon {
+      font-size: 1.1rem;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .status-pill {
+      padding: 0.2rem 0.6rem;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-pill.running { background: rgba(210,153,34,0.15); color: var(--yellow); }
+    .status-pill.done    { background: rgba(63,185,80,0.15);  color: var(--green); }
+    .status-pill.error   { background: rgba(248,81,73,0.15);  color: var(--red); }
+
+    .card-body { padding: 1.25rem; }
+
+    /* Skeleton loader */
+    .skeleton {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      margin-bottom: 0.5rem;
+    }
+
+    .skeleton:last-child { width: 60%; }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Output content */
+    .output-grid { display: grid; gap: 1rem; }
+
+    .output-section h4 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .task-list { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .task-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .task-item strong { color: var(--accent); }
+
+    .file-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+
+    .file-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 0.75rem;
+      background: rgba(88,166,255,0.08);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      font-family: monospace;
+      color: var(--accent);
+    }
+
+    .file-desc { font-size: 0.75rem; color: var(--muted); font-family: sans-serif; }
+
+    pre {
+      margin: 0;
+      padding: 0.75rem;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 2rem;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    .verdict-badge.pass { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid var(--green); }
+    .verdict-badge.fail { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid var(--red); }
+
+    .score-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .score-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .score-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--green);
+      transition: width 0.6s ease;
+    }
+
+    .issue-list { display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .issue-item {
+      background: var(--surface2);
+      border-left: 3px solid var(--border);
+      border-radius: 0 6px 6px 0;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .issue-item.critical { border-left-color: var(--red); }
+    .issue-item.major    { border-left-color: var(--yellow); }
+    .issue-item.minor    { border-left-color: var(--accent); }
+
+    .issue-sev {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 0.15rem;
+    }
+
+    .issue-item.critical .issue-sev { color: var(--red); }
+    .issue-item.major    .issue-sev { color: var(--yellow); }
+    .issue-item.minor    .issue-sev { color: var(--accent); }
+
+    .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+    .tag {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .summary-text {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    .error-box {
+      background: rgba(248,81,73,0.1);
+      border: 1px solid var(--red);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      color: var(--red);
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 3rem 1rem;
+      font-size: 0.95rem;
+    }
+
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+    /* Action buttons (revise / prototype) */
+    .action-btn {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .action-btn:hover:not(:disabled) { background: rgba(88,166,255,0.1); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .action-btn.warn { color: var(--yellow); border-color: var(--yellow); }
+    .action-btn.warn:hover:not(:disabled) { background: rgba(210,153,34,0.1); }
+
+    .post-run-actions {
+      display: flex;
+      gap: 0.6rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .post-run-actions .action-btn { padding: 0.6rem 1.2rem; font-size: 0.95rem; }
+
+    /* Prototype modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1.5rem;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 1100px;
+      height: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1.25rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-header h3 {
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .modal-close {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: var(--text); border-color: var(--text); }
+
+    .modal-body { flex: 1; background: #fff; }
+
+    .modal-body iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+
+    .modal-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--muted);
+      font-size: 0.95rem;
+      background: var(--surface);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AgentForge</h1>
+  <span>AI Multi-Agent Pipeline</span>
+</header>
+
+<main>
+  <div class="input-section">
+    <label for="promptInput">Describe what you want to build</label>
+    <textarea
+      id="promptInput"
+      placeholder="e.g. Build a REST API that manages a todo list with SQLite storage and authentication"
+    ></textarea>
+    <div class="input-row">
+      <button id="runBtn" onclick="runPipeline()">
+        <span id="btnIcon">&#9654;</span>
+        <span id="btnLabel">Run Pipeline</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="pipeline" id="pipelineStrip" style="display:none">
+    <div class="pipeline-badge" id="badge-planner"><span class="dot"></span> Planner</div>
+    <div class="pipeline-badge" id="badge-coder"><span class="dot"></span> Coder</div>
+    <div class="pipeline-badge" id="badge-reviewer"><span class="dot"></span> Reviewer</div>
+    <div class="pipeline-badge" id="badge-tester"><span class="dot"></span> Tester</div>
+  </div>
+
+  <div class="cards" id="cards">
+    <div class="empty-state">
+      <div class="icon">&#9881;</div>
+      Enter a prompt above and click <strong>Run Pipeline</strong> to start.
+    </div>
+  </div>
+
+  <div class="post-run-actions" id="postRunActions" style="display:none">
+    <button class="action-btn" id="prototypeBtn" onclick="showPrototype()">
+      &#128064; View Prototype
+    </button>
+  </div>
+</main>
+
+<div class="modal-overlay" id="prototypeModal" onclick="if(event.target===this) closePrototype()">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Project Prototype</h3>
+      <button class="modal-close" onclick="closePrototype()">Close</button>
+    </div>
+    <div class="modal-body" id="prototypeBody">
+      <div class="modal-loading">Generating prototype…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const AGENTS = {
+    planner:  { name: "Planner Agent",  icon: "&#128203;" },
+    coder:    { name: "Coder Agent",    icon: "&#128187;" },
+    reviewer: { name: "Reviewer Agent", icon: "&#128269;" },
+    tester:   { name: "Tester Agent",   icon: "&#9989;" },
+  };
+
+  let running = false;
+  const pipelineState = { prompt: "", plan: null, code: null, review: null, tests: null };
+
+  function setRunning(state) {
+    running = state;
+    const btn = document.getElementById("runBtn");
+    btn.disabled = state;
+    document.getElementById("btnIcon").textContent = state ? "⏳" : "▶";
+    document.getElementById("btnLabel").textContent = state ? "Running…" : "Run Pipeline";
+    // Disable post-run actions while a run is in flight
+    const proto = document.getElementById("prototypeBtn");
+    if (proto) proto.disabled = state;
+    document.querySelectorAll(".revise-btn").forEach(b => { b.disabled = state; });
+  }
+
+  function storeAgentOutput(agentId, output) {
+    if (!output) return;
+    if (agentId === "planner")  pipelineState.plan   = output;
+    if (agentId === "coder")    pipelineState.code   = output;
+    if (agentId === "reviewer") pipelineState.review = output;
+    if (agentId === "tester")   pipelineState.tests  = output;
+  }
+
+  function reviewNeedsRevision(review) {
+    if (!review) return false;
+    const verdict = (review.verdict || "").toLowerCase();
+    const issues = review.issues || [];
+    const hasActionableIssue = issues.some(i =>
+      ["critical", "major", "minor"].includes((i.severity || "").toLowerCase()));
+    const hasRecs = (review.recommendations || []).length > 0;
+    return verdict === "fail" || hasActionableIssue || hasRecs;
+  }
+
+  function maybeAttachReviseButton() {
+    const review = pipelineState.review;
+    const body = document.getElementById("body-reviewer");
+    if (!body) return;
+    const existing = body.querySelector(".revise-btn");
+    if (!reviewNeedsRevision(review)) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    const wrap = document.createElement("div");
+    wrap.style.marginTop = "1rem";
+    wrap.style.display = "flex";
+    wrap.style.justifyContent = "flex-end";
+    wrap.innerHTML = `
+      <button class="action-btn warn revise-btn" onclick="reviseFromFeedback()">
+        &#128257; Apply Feedback &amp; Revise
+      </button>`;
+    body.appendChild(wrap);
+  }
+
+  function setBadge(agentId, status) {
+    const badge = document.getElementById(`badge-${agentId}`);
+    if (!badge) return;
+    badge.className = `pipeline-badge ${status}`;
+    const dot = badge.querySelector(".dot");
+    dot.className = `dot ${status === "running" ? "pulse" : ""}`;
+  }
+
+  function getOrCreateCard(agentId) {
+    let card = document.getElementById(`card-${agentId}`);
+    if (!card) {
+      card = document.createElement("div");
+      card.className = "agent-card";
+      card.id = `card-${agentId}`;
+      const meta = AGENTS[agentId];
+      card.innerHTML = `
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-icon">${meta.icon}</span>
+            ${meta.name}
+          </div>
+          <div class="card-meta">
+            <span class="elapsed" id="elapsed-${agentId}"></span>
+            <span class="status-pill" id="pill-${agentId}">Pending</span>
+          </div>
+        </div>
+        <div class="card-body" id="body-${agentId}">
+          <div class="skeleton"></div>
+          <div class="skeleton"></div>
+          <div class="skeleton" style="width:70%"></div>
+        </div>`;
+      document.getElementById("cards").appendChild(card);
+    }
+    return card;
+  }
+
+  function setCardStatus(agentId, status, elapsed) {
+    const card = document.getElementById(`card-${agentId}`);
+    if (card) card.className = `agent-card ${status}`;
+    const pill = document.getElementById(`pill-${agentId}`);
+    if (pill) {
+      pill.className = `status-pill ${status}`;
+      pill.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    }
+    if (elapsed != null) {
+      const el = document.getElementById(`elapsed-${agentId}`);
+      if (el) el.textContent = `${elapsed}s`;
+    }
+  }
+
+  function renderPlannerOutput(output) {
+    const tasks = output.tasks || [];
+    return `
+      <div class="output-grid">
+        <div class="output-section">
+          <h4>Project: ${escHtml(output.project_name || "")}</h4>
+          <div class="summary-text">${escHtml(output.description || "")}</div>
+        </div>
+        <div class="output-section">
+          <h4>Tasks (${tasks.length})</h4>
+          <ul class="task-list">
+            ${tasks.map(t => `
+              <li class="task-item">
+                <strong>#${t.id} ${escHtml(t.title)}</strong><br/>
+                <span style="color:var(--muted);font-size:0.82rem">${escHtml(t.description)}</span>
+              </li>`).join("")}
+          </ul>
+        </div>
+      </div>`;
+  }
+
+  function renderCoderOutput(output) {
+    const files = output.files || [];
+    const deps = output.dependencies || [];
+    return `
+      <div class="output-grid">
+        ${deps.length ? `
+        <div class="output-section">
+          <h4>Dependencies</h4>
+          <div class="tag-list">${deps.map(d => `<span class="tag">${escHtml(d)}</span>`).join("")}</div>
+        </div>` : ""}
+        <div class="output-section">
+          <h4>Files (${files.length})</h4>
+          ${files.map(f => `
+            <div class="file-block">
+              <div class="file-block-header">
+                <span>${escHtml(f.filename)}</span>
+                <span class="file-desc">${escHtml(f.description || "")}</span>
+              </div>
+              <pre>${escHtml(f.content || "")}</pre>
+            </div>`).join("")}
+        </div>
+        ${output.setup_instructions ? `
+        <div class="output-section">
+          <h4>Setup</h4>
+          <div class="summary-text">${escHtml(output.setup_instructions)}</div>
+        </div>` : ""}
+      </div>`;
+  }
+
+  function renderReviewerOutput(output) {
+    const verdict = (output.verdict || "").toLowerCase();
+    const score = output.score || 0;
+    const issues = output.issues || [];
+    const strengths = output.strengths || [];
+    const recs = output.recommendations || [];
+    return `
+      <div class="output-grid">
+        <div class="output-section" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+          <span class="verdict-badge ${verdict}">${verdict === "pass" ? "✓ Pass" : "✗ Fail"}</span>
+          <div class="score-bar-wrap" style="flex:1;min-width:150px">
+            <span style="font-size:0.85rem;color:var(--muted)">Score</span>
+            <div class="score-bar">
+              <div class="score-fill" style="width:${score * 10}%;background:${score >= 7 ? "var(--green)" : score >= 5 ? "var(--yellow)" : "var(--red)"}"></div>
+            </div>
+            <span style="font-weight:600">${score}/10</span>
+          </div>
+        </div>
+        <div class="output-section">
+          <h4>Summary</h4>
+          <div class="summary-text">${escHtml(output.summary || "")}</div>
+        </div>
+        ${issues.length ? `
+        <div class="output-section">
+          <h4>Issues (${issues.length})</h4>
+          <div class="issue-list">
+            ${issues.map(i => `
+              <div class="issue-item ${(i.severity||"").toLowerCase()}">
+                <div class="issue-sev">${escHtml(i.severity)} — ${escHtml(i.file)}</div>
+                <div>${escHtml(i.description)}</div>
+                ${i.suggestion ? `<div style="color:var(--muted);font-size:0.8rem;margin-top:0.2rem">&#128161; ${escHtml(i.suggestion)}</div>` : ""}
+              </div>`).join("")}
+          </div>
+        </div>` : ""}
+        ${strengths.length ? `
+        <div class="output-section">
+          <h4>Strengths</h4>
+          <ul style="padding-left:1.25rem;font-size:0.875rem;color:var(--text);line-height:1.8">
+            ${strengths.map(s => `<li>${escHtml(s)}</li>`).join("")}
+          </ul>
+        </div>` : ""}
+        ${recs.length ? `
+        <div class="output-section">
+          <h4>Recommendations</h4>
+          <ul style="padding-left:1.25rem;font-size:0.875rem;color:var(--muted);line-height:1.8">
+            ${recs.map(r => `<li>${escHtml(r)}</li>`).join("")}
+          </ul>
+        </div>` : ""}
+      </div>`;
+  }
+
+  function renderTesterOutput(output) {
+    const files = output.test_files || [];
+    return `
+      <div class="output-grid">
+        <div class="output-section" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+          <span style="font-size:0.85rem;color:var(--muted)">Tests generated:</span>
+          <strong style="color:var(--green)">${output.test_count || 0}</strong>
+          ${output.run_command ? `<code style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.5rem;font-size:0.8rem;color:var(--accent)">${escHtml(output.run_command)}</code>` : ""}
+        </div>
+        ${output.coverage_summary ? `
+        <div class="output-section">
+          <h4>Coverage</h4>
+          <div class="summary-text">${escHtml(output.coverage_summary)}</div>
+        </div>` : ""}
+        <div class="output-section">
+          <h4>Test Files (${files.length})</h4>
+          ${files.map(f => `
+            <div class="file-block">
+              <div class="file-block-header">
+                <span>${escHtml(f.filename)}</span>
+                <span class="file-desc">${escHtml(f.description || "")}</span>
+              </div>
+              <pre>${escHtml(f.content || "")}</pre>
+            </div>`).join("")}
+        </div>
+      </div>`;
+  }
+
+  function renderOutput(agentId, output) {
+    if (output && output.error) {
+      return `<div class="error-box">&#9888; ${escHtml(output.error)}</div>`;
+    }
+    switch (agentId) {
+      case "planner":  return renderPlannerOutput(output || {});
+      case "coder":    return renderCoderOutput(output || {});
+      case "reviewer": return renderReviewerOutput(output || {});
+      case "tester":   return renderTesterOutput(output || {});
+      default: return `<pre>${escHtml(JSON.stringify(output, null, 2))}</pre>`;
+    }
+  }
+
+  function escHtml(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  async function consumeSSE(resp, opts = {}) {
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      const lines = buf.split("\n");
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const json = line.slice(6).trim();
+        if (!json) continue;
+
+        let event;
+        try { event = JSON.parse(json); } catch { continue; }
+
+        if (event.agent === "__done__") {
+          if (opts.onDone) opts.onDone();
+          continue;
+        }
+
+        const { agent, status, output, elapsed } = event;
+
+        if (status === "running") {
+          getOrCreateCard(agent);
+          setCardStatus(agent, "running", null);
+          setBadge(agent, "running");
+          // Reset the body to skeletons while this agent re-runs (revise pass)
+          document.getElementById(`body-${agent}`).innerHTML =
+            `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton" style="width:70%"></div>`;
+        } else if (status === "done" || status === "error") {
+          getOrCreateCard(agent);
+          setCardStatus(agent, status, elapsed);
+          setBadge(agent, status);
+          document.getElementById(`body-${agent}`).innerHTML = renderOutput(agent, output);
+          if (status === "done") storeAgentOutput(agent, output);
+          if (agent === "reviewer" && status === "done") maybeAttachReviseButton();
+        }
+      }
+    }
+  }
+
+  async function runPipeline() {
+    if (running) return;
+    const prompt = document.getElementById("promptInput").value.trim();
+    if (!prompt) {
+      document.getElementById("promptInput").focus();
+      return;
+    }
+
+    // Reset state + UI
+    pipelineState.prompt = prompt;
+    pipelineState.plan = pipelineState.code = pipelineState.review = pipelineState.tests = null;
+    setRunning(true);
+    document.getElementById("cards").innerHTML = "";
+    document.getElementById("pipelineStrip").style.display = "flex";
+    document.getElementById("postRunActions").style.display = "none";
+    ["planner","coder","reviewer","tester"].forEach(id => setBadge(id, ""));
+
+    try {
+      const resp = await fetch("/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      await consumeSSE(resp, { onDone: onPipelineComplete });
+    } catch (err) {
+      document.getElementById("cards").innerHTML =
+        `<div class="error-box">&#9888; Connection error: ${escHtml(err.message)}</div>`;
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  function onPipelineComplete() {
+    setRunning(false);
+    if (pipelineState.code && (pipelineState.code.files || []).length) {
+      document.getElementById("postRunActions").style.display = "flex";
+    }
+  }
+
+  async function reviseFromFeedback() {
+    if (running) return;
+    const { prompt, plan, code, review } = pipelineState;
+    if (!plan || !code || !review) return;
+
+    setRunning(true);
+    // Dim the post-run actions while revising
+    document.getElementById("postRunActions").style.display = "none";
+
+    try {
+      const resp = await fetch("/revise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, plan, code, review }),
+      });
+      await consumeSSE(resp, { onDone: onPipelineComplete });
+    } catch (err) {
+      document.getElementById("cards").insertAdjacentHTML("beforeend",
+        `<div class="error-box">&#9888; Revision error: ${escHtml(err.message)}</div>`);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function showPrototype() {
+    const { prompt, plan, code } = pipelineState;
+    if (!code) return;
+    const overlay = document.getElementById("prototypeModal");
+    const body = document.getElementById("prototypeBody");
+    body.innerHTML = `<div class="modal-loading">Generating prototype…</div>`;
+    overlay.classList.add("open");
+
+    try {
+      const resp = await fetch("/prototype", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, plan, code }),
+      });
+      const data = await resp.json();
+      if (data.error || !data.html) {
+        body.innerHTML = `<div class="modal-loading">&#9888; ${escHtml(data.error || "Failed to generate prototype")}</div>`;
+        return;
+      }
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("sandbox", "allow-scripts");
+      iframe.setAttribute("srcdoc", data.html);
+      body.innerHTML = "";
+      body.appendChild(iframe);
+    } catch (err) {
+      body.innerHTML = `<div class="modal-loading">&#9888; ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function closePrototype() {
+    document.getElementById("prototypeModal").classList.remove("open");
+  }
+
+  // Allow Ctrl+Enter to submit
+  document.getElementById("promptInput").addEventListener("keydown", e => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) runPipeline();
+  });
+
+  // Esc closes the prototype modal
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closePrototype();
+  });
+</script>
+</body>
+</html>
